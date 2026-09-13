@@ -1,0 +1,148 @@
+extends CharacterBody3D
+## PlayerCharacter
+## شخصية اللاعب سيراً على الأقدام، تدعم الركوب بالسيارات والتسلّل.
+
+const GRAVITY: float = 18.0
+@export var base_speed: float = 5.0
+@export var enter_vehicle_range: float = 3.0
+
+@onready var health: HealthComponent = $HealthComponent
+@onready var weapon: WeaponBasic = $WeaponBasic
+@onready var model_root: Node3D = $ModelRoot
+@onready var collision_shape: CollisionShape3D = $CollisionShape3D
+@onready var vehicle_detector: Area3D = $VehicleDetector
+@onready var camera: Camera3D = get_node_or_null("FollowCamera")
+
+var move_speed: float = 5.0
+var stealth_bonus: float = 0.0
+var _anim_player: AnimationPlayer = null
+var _nearby_vehicles: Array = []
+var _current_vehicle: Node = null
+var _is_driving: bool = false
+var is_crouching: bool = false
+
+const CROUCH_SPEED_MULTIPLIER: float = 0.45
+const CROUCH_STEALTH_BONUS: float = 0.35
+const CROUCH_MODEL_SCALE: float = 0.6
+
+
+func _ready() -> void:
+	var data: Dictionary = CharacterSelect.get_selected_data()
+	move_speed = base_speed * data.get("speed_multiplier", 1.0)
+	health.max_health += data.get("health_bonus", 0.0)
+	health.current_health = health.max_health
+	stealth_bonus = data.get("stealth_bonus", 0.0)
+
+	_load_character_model(data)
+
+	add_to_group("player")
+	GameManager.register_player(self)
+	WeaponSystem.weapon_equipped.connect(_on_weapon_equipped)
+	_on_weapon_equipped(WeaponSystem.equipped_weapon)
+	MedicalSystem.watch_player_health(health)
+
+	if vehicle_detector:
+		vehicle_detector.body_entered.connect(_on_vehicle_zone_entered)
+		vehicle_detector.body_exited.connect(_on_vehicle_zone_exited)
+
+	health.damaged.connect(_on_damaged)
+
+
+func _on_damaged(amount: float, _source: Node) -> void:
+	if camera and camera.has_method("add_trauma"):
+		camera.add_trauma(clamp(amount / 40.0, 0.1, 0.8))
+
+
+func _load_character_model(data: Dictionary) -> void:
+	_anim_player = CharacterModelLoader.load_character(
+		model_root,
+		data.get("model_path", ""),
+		data.get("skin_path", ""),
+		data.get("model_color", Color.WHITE),
+		["idle", "run", "jump"],
+		"res://assets/characters_v2/animations.glb"
+	)
+
+
+func _physics_process(delta: float) -> void:
+	if _is_driving:
+		return
+
+	if Input.is_action_just_pressed("interact") and not _nearby_vehicles.is_empty():
+		var vehicle = _nearby_vehicles[0]
+		if vehicle.has_method("enter_vehicle"):
+			vehicle.enter_vehicle(self)
+			return
+
+	if not health.is_alive():
+		return
+
+	if Input.is_action_just_pressed("crouch"):
+		is_crouching = not is_crouching
+		model_root.scale.y = CROUCH_MODEL_SCALE if is_crouching else 1.0
+
+	var effective_speed: float = move_speed * (CROUCH_SPEED_MULTIPLIER if is_crouching else 1.0)
+
+	var input_dir := Vector2(
+		Input.get_action_strength("steer_right") - Input.get_action_strength("steer_left"),
+		Input.get_action_strength("move_back") - Input.get_action_strength("move_forward")
+	)
+	var direction := Vector3(input_dir.x, 0, input_dir.y).normalized()
+
+	if direction.length() > 0.01:
+		velocity.x = direction.x * effective_speed
+		velocity.z = direction.z * effective_speed
+		look_at(global_position + direction, Vector3.UP)
+		_play_animation("run")
+	else:
+		velocity.x = move_toward(velocity.x, 0, effective_speed)
+		velocity.z = move_toward(velocity.z, 0, effective_speed)
+		_play_animation("idle")
+
+	if not is_on_floor():
+		velocity.y -= GRAVITY * delta
+	else:
+		velocity.y = 0.0
+
+	move_and_slide()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _is_driving:
+		return
+	if event.is_action_pressed("handbrake"):
+		weapon.try_fire(self)
+
+
+func set_hidden_for_driving(hide_it: bool, new_position: Vector3 = Vector3.ZERO) -> void:
+	_is_driving = hide_it
+	visible = not hide_it
+	collision_shape.disabled = hide_it
+	if camera:
+		camera.current = not hide_it
+	if not hide_it and new_position != Vector3.ZERO:
+		global_position = new_position
+		velocity = Vector3.ZERO
+
+
+func _on_vehicle_zone_entered(body: Node) -> void:
+	if body.is_in_group("vehicle") and not _nearby_vehicles.has(body):
+		_nearby_vehicles.append(body)
+
+
+func _on_vehicle_zone_exited(body: Node) -> void:
+	_nearby_vehicles.erase(body)
+
+
+func _play_animation(anim_name: String) -> void:
+	if _anim_player and _anim_player.has_animation(anim_name):
+		if _anim_player.current_animation != anim_name:
+			_anim_player.play(anim_name)
+
+
+func _on_weapon_equipped(_weapon_id: String) -> void:
+	weapon.apply_stats(WeaponSystem.get_equipped_stats())
+
+
+func get_total_stealth() -> float:
+	return clamp(stealth_bonus + (CROUCH_STEALTH_BONUS if is_crouching else 0.0), 0.0, 0.85)
