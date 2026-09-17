@@ -1,0 +1,172 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/settings_screen.gd" id="1"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.09, 0.09, 0.11, 0.96)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(1, 0.42, 0.24, 0.6)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[node name="SettingsScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 1
+script = ExtResource("1")
+
+[node name="Panel" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -280.0
+offset_top = -260.0
+offset_right = 280.0
+offset_bottom = 260.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = -16.0
+theme_override_constants/separation = 12
+
+[node name="TitleLabel" type="Label" parent="Panel/VBoxContainer"]
+layout_mode = 2
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 24
+text = "الإعدادات"
+
+[node name="Tabs" type="HBoxContainer" parent="Panel/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="AudioTab" type="Button" parent="Panel/VBoxContainer/Tabs"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "الصوت"
+
+[node name="ControlsTab" type="Button" parent="Panel/VBoxContainer/Tabs"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "التحكم"
+
+[node name="PrivacyTab" type="Button" parent="Panel/VBoxContainer/Tabs"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "الخصوصية"
+
+[node name="AboutTab" type="Button" parent="Panel/VBoxContainer/Tabs"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "حول"
+
+[node name="Content" type="Control" parent="Panel/VBoxContainer"]
+custom_minimum_size = Vector2(0, 340)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="AudioPanel" type="VBoxContainer" parent="Panel/VBoxContainer/Content"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_constants/separation = 16
+
+[node name="VolumeLabel" type="Label" parent="Panel/VBoxContainer/Content/AudioPanel"]
+layout_mode = 2
+text = "مستوى الصوت العام"
+
+[node name="VolumeSlider" type="HSlider" parent="Panel/VBoxContainer/Content/AudioPanel"]
+layout_mode = 2
+max_value = 1.0
+step = 0.05
+value = 0.8
+
+[node name="MuteButton" type="CheckButton" parent="Panel/VBoxContainer/Content/AudioPanel"]
+layout_mode = 2
+text = "كتم الصوت بالكامل"
+
+[node name="NoteLabel" type="Label" parent="Panel/VBoxContainer/Content/AudioPanel"]
+layout_mode = 2
+autowrap_mode = 3
+theme_override_colors/font_color = Color(0.8, 0.8, 0.85, 0.7)
+text = "قنوات منفصلة للموسيقى والمؤثرات الصوتية قادمة لما تنضاف الملفات الصوتية للعبة."
+
+[node name="ControlsPanel" type="VBoxContainer" parent="Panel/VBoxContainer/Content"]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_constants/separation = 14
+
+[node name="HintLabel" type="Label" parent="Panel/VBoxContainer/Content/ControlsPanel"]
+layout_mode = 2
+autowrap_mode = 3
+text = "فعّل وضع التعديل عشان تسحب الأزرار لمكانها المفضل"
+
+[node name="EditToggleButton" type="Button" parent="Panel/VBoxContainer/Content/ControlsPanel"]
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+text = "تعديل مواضع الأزرار"
+
+[node name="ResetButton" type="Button" parent="Panel/VBoxContainer/Content/ControlsPanel"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+text = "استرجاع المواضع الافتراضية"
+
+[node name="PrivacyPanel" type="VBoxContainer" parent="Panel/VBoxContainer/Content"]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="PrivacyText" type="RichTextLabel" parent="Panel/VBoxContainer/Content/PrivacyPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+scroll_active = true
+autowrap_mode = 3
+
+[node name="AboutPanel" type="VBoxContainer" parent="Panel/VBoxContainer/Content"]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+theme_override_constants/separation = 10
+
+[node name="GameTitle" type="Label" parent="Panel/VBoxContainer/Content/AboutPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Riot — v0.1 (Preview)"
+
+[node name="Characters" type="Label" parent="Panel/VBoxContainer/Content/AboutPanel"]
+layout_mode = 2
+text = "الشخصيات: Zade و Nyra"
+
+[node name="Credits" type="Label" parent="Panel/VBoxContainer/Content/AboutPanel"]
+layout_mode = 2
+autowrap_mode = 3
+text = "الأصول ثلاثية الأبعاد: Kenney.nl و Quaternius (رخصة CC0)"
+
+[node name="Engine" type="Label" parent="Panel/VBoxContainer/Content/AboutPanel"]
+layout_mode = 2
+text = "محرك اللعبة: Godot 4"
+
+[node name="CloseButton" type="Button" parent="Panel/VBoxContainer"]
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+text = "إغلاق"
