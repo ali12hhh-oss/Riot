@@ -166,6 +166,28 @@ text = "الأصول ثلاثية الأبعاد: Kenney.nl و Quaternius (رخ�
 layout_mode = 2
 text = "محرك اللعبة: Godot 4"
 
+[node name="SaveLoadRow" type="HBoxContainer" parent="Panel/VBoxContainer/Content/AboutPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SaveButton" type="Button" parent="Panel/VBoxContainer/Content/AboutPanel/SaveLoadRow"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "💾 حفظ التقدم"
+
+[node name="LoadButton" type="Button" parent="Panel/VBoxContainer/Content/AboutPanel/SaveLoadRow"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "📂 تحميل آخر حفظ"
+
+[node name="SaveStatusLabel" type="Label" parent="Panel/VBoxContainer/Content/AboutPanel"]
+layout_mode = 2
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(0.6, 1, 0.6, 1)
+text = ""
+
 [node name="CloseButton" type="Button" parent="Panel/VBoxContainer"]
 custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
