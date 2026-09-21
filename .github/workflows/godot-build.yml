@@ -49,13 +49,16 @@ jobs:
       - name: Import project (populate .godot cache)
         run: godot --headless --verbose --editor --quit
 
-      - name: Install Android Gradle build template
-        run: godot --headless --verbose --install-android-build-template
+      - name: Install Android Gradle build template (manual — CLI flag hangs headless in 4.3)
+        run: |
+          mkdir -p android/build
+          unzip -q ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/android_source.zip -d android/build
+          touch android/.gdignore
 
       - name: Export Android debug APK
         run: |
           mkdir -v -p build/android
-          godot --headless --verbose --export-debug "Android" build/android/riot-debug.apk
+          timeout 600 godot --headless --verbose --export-debug "Android" build/android/riot-debug.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
