@@ -127,7 +127,7 @@ func has_interactable_vehicle() -> bool:
 	return not _nearby_vehicles.is_empty()
 
 func has_equipped_weapon() -> bool:
-	return str(WeaponSystem.equipped_weapon) != ""
+	return WeaponSystem.equipped_weapon != "fists" and WeaponSystem.owned_weapons.has(WeaponSystem.equipped_weapon)
 
 func touch_interact() -> void:
 	if _is_driving:
