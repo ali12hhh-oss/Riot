@@ -1,10 +1,16 @@
 extends Control
-## Visual layer for the mobile PUBG-style controls.
+## Professional mobile control visuals.
+## Input hit areas remain in touch_controls.gd; this script only draws the UI.
 
 var joystick := Vector2.ZERO
 var sprint := false
 var visible_actions: Dictionary = {}
 var car_mode := false
+
+const ACCENT := Color(1.0, 0.42, 0.24, 0.92)
+const WHITE := Color(1, 1, 1, 0.94)
+const PANEL := Color(0.035, 0.045, 0.065, 0.78)
+const PANEL_SOFT := Color(0.06, 0.07, 0.09, 0.56)
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -17,36 +23,68 @@ func _process(_delta: float) -> void:
 func _draw() -> void:
 	var size := get_viewport_rect().size
 	var center := Vector2(112.0, size.y - 118.0)
-	var outer := 78.0
-	draw_circle(center, outer, Color(0.04, 0.05, 0.07, 0.34))
-	draw_arc(center, outer, 0.0, TAU, 48, Color(1,1,1,0.34), 2.0)
-	var knob := center + joystick * 48.0
-	draw_circle(knob, 34.0, Color(0.15,0.17,0.20,0.72))
-	draw_arc(knob, 34.0, 0.0, TAU, 32, Color(1,1,1,0.45), 2.0)
-	if sprint:
-		draw_circle(center + Vector2(0,-102), 25.0, Color(0.95,0.75,0.15,0.85))
-		draw_string(ThemeDB.fallback_font, center + Vector2(-15,-96), "RUN", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
+	_draw_joystick(center)
+	_draw_sprint(center + Vector2(0, -102), sprint)
 
 	var base := Vector2(size.x - 108.0, size.y - 108.0)
 	var positions := {
-		"fire": base + Vector2(-128,-72),
-		"melee": base + Vector2(-58,-142),
-		"crouch": base + Vector2(10,-74),
-		"jump": base + Vector2(0,-155),
-		"interact": base + Vector2(-205,-8),
-		"sprint": center + Vector2(0,-102),
-		"brake": base + Vector2(-126,8),
-		"accelerate": base + Vector2(0,8),
-		"exit": base + Vector2(-68,-212)
+		"fire": base + Vector2(-128, -72),
+		"melee": base + Vector2(-58, -142),
+		"crouch": base + Vector2(10, -74),
+		"jump": base + Vector2(0, -155),
+		"interact": base + Vector2(-205, -8),
+		"sprint": center + Vector2(0, -102),
+		"brake": base + Vector2(-126, 8),
+		"accelerate": base + Vector2(0, 8),
+		"exit": base + Vector2(-68, -212)
 	}
 	for key in visible_actions.keys():
-		if not visible_actions[key]:
+		if not visible_actions[key] or key == "sprint":
 			continue
 		if not positions.has(key):
 			continue
-		var p: Vector2 = positions[key]
-		var radius := 34.0 if key not in ["fire","melee"] else 42.0
-		draw_circle(p, radius, Color(0.05,0.06,0.08,0.62))
-		draw_arc(p, radius, 0.0, TAU, 36, Color(1,1,1,0.5), 2.0)
-		var label := str(key).to_upper()
-		draw_string(ThemeDB.fallback_font, p + Vector2(-radius + 5, 5), label, HORIZONTAL_ALIGNMENT_CENTER, radius*2-10, 12, Color.WHITE)
+		var radius := 45.0 if key in ["fire", "melee"] else 39.0
+		_draw_action(positions[key], radius, str(key))
+
+func _draw_joystick(center: Vector2) -> void:
+	# Shadow + outer ring + inner ring give the stick a layered gamepad look.
+	draw_circle(center + Vector2(0, 5), 88.0, Color(0, 0, 0, 0.30))
+	draw_circle(center, 84.0, PANEL)
+	draw_arc(center, 84.0, 0.0, TAU, 72, Color(1, 1, 1, 0.28), 2.0, true)
+	draw_arc(center, 72.0, 0.0, TAU, 72, Color(1, 1, 1, 0.10), 1.0, true)
+
+	var knob := center + joystick * 48.0
+	draw_circle(knob + Vector2(0, 3), 33.0, Color(0, 0, 0, 0.28))
+	draw_circle(knob, 31.0, Color(0.12, 0.14, 0.18, 0.92))
+	draw_arc(knob, 31.0, 0.0, TAU, 48, Color(1, 1, 1, 0.52), 2.0, true)
+	draw_circle(knob, 5.0, ACCENT)
+
+func _draw_sprint(center: Vector2, active: bool) -> void:
+	var fill := ACCENT if active else PANEL_SOFT
+	draw_circle(center + Vector2(0, 3), 31.0, Color(0, 0, 0, 0.28))
+	draw_circle(center, 29.0, fill)
+	draw_arc(center, 29.0, 0.0, TAU, 48, Color(1, 1, 1, 0.50), 2.0, true)
+	_draw_icon(center, "⚡", 22)
+
+func _draw_action(center: Vector2, radius: float, action: String) -> void:
+	draw_circle(center + Vector2(0, 3), radius + 1.0, Color(0, 0, 0, 0.26))
+	draw_circle(center, radius, PANEL)
+	draw_arc(center, radius, 0.0, TAU, 56, Color(1, 1, 1, 0.42), 2.0, true)
+	draw_arc(center, radius - 5.0, -2.7, -0.4, 28, ACCENT, 2.5, true)
+	_draw_icon(center, _icon_for(action), 22)
+
+func _icon_for(action: String) -> String:
+	match action:
+		"fire": return "•"
+		"melee": return "✦"
+		"crouch": return "⌄"
+		"jump": return "↑"
+		"interact": return "↗"
+		"brake": return "■"
+		"accelerate": return "▲"
+		"exit": return "↩"
+	return "·"
+
+func _draw_icon(center: Vector2, icon: String, font_size: int) -> void:
+	var font := ThemeDB.fallback_font
+	font.draw_string(self.get_canvas_item(), center + Vector2(-18, 8), icon, HORIZONTAL_ALIGNMENT_CENTER, 36, font_size, WHITE)
