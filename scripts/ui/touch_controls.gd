@@ -9,6 +9,7 @@ const JOYSTICK_KNOB_LIMIT := 1.0
 var _visual: Control
 var _player: Node = null
 var _car: Node = null
+@export var player_car_path: NodePath
 var _joystick_touch_id := -1
 var _sprint_touch_id := -1
 var _action_touches: Dictionary = {}
@@ -26,7 +27,14 @@ func _ready() -> void:
 
 func _refresh_targets() -> void:
 	_player = get_tree().get_first_node_in_group("player")
-	_car = get_tree().get_first_node_in_group("vehicle")
+	if player_car_path != NodePath() and has_node(player_car_path):
+		_car = get_node(player_car_path)
+	else:
+		_car = null
+		for candidate in get_tree().get_nodes_in_group("vehicle"):
+			if candidate.has_method("set_touch_input"):
+				_car = candidate
+				break
 
 func _process(_delta: float) -> void:
 	if _player == null or not is_instance_valid(_player):
