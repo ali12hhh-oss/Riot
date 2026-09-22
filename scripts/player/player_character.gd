@@ -20,6 +20,8 @@ var _nearby_vehicles: Array = []
 var _current_vehicle: Node = null
 var _is_driving: bool = false
 var is_crouching: bool = false
+var _touch_move := Vector2.ZERO
+var _touch_sprint := false
 
 const CROUCH_SPEED_MULTIPLIER: float = 0.45
 const CROUCH_STEALTH_BONUS: float = 0.35
@@ -66,6 +68,8 @@ func _load_character_model(data: Dictionary) -> void:
 
 func _physics_process(delta: float) -> void:
 	if _is_driving:
+		_touch_move = Vector2.ZERO
+		_touch_sprint = false
 		return
 
 	if Input.is_action_just_pressed("interact") and not _nearby_vehicles.is_empty():
@@ -81,12 +85,14 @@ func _physics_process(delta: float) -> void:
 		is_crouching = not is_crouching
 		model_root.scale.y = CROUCH_MODEL_SCALE if is_crouching else 1.0
 
-	var effective_speed: float = move_speed * (CROUCH_SPEED_MULTIPLIER if is_crouching else 1.0)
+	var effective_speed: float = move_speed * (CROUCH_SPEED_MULTIPLIER if is_crouching else 1.0) * (1.65 if _touch_sprint and not is_crouching else 1.0)
 
-	var input_dir := Vector2(
-		Input.get_action_strength("steer_right") - Input.get_action_strength("steer_left"),
-		Input.get_action_strength("move_back") - Input.get_action_strength("move_forward")
-	)
+	var input_dir := _touch_move
+	if input_dir.length() <= 0.01:
+		input_dir = Vector2(
+			Input.get_action_strength("steer_right") - Input.get_action_strength("steer_left"),
+			Input.get_action_strength("move_back") - Input.get_action_strength("move_forward")
+		)
 	var direction := Vector3(input_dir.x, 0, input_dir.y).normalized()
 
 	if direction.length() > 0.01:
@@ -106,6 +112,30 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 
+
+func set_touch_movement(value: Vector2) -> void:
+	_touch_move = value.limit_length(1.0)
+
+func set_touch_sprint(enabled: bool) -> void:
+	_touch_sprint = enabled
+
+func touch_fire() -> void:
+	if not _is_driving and health.is_alive() and weapon:
+		weapon.try_fire(self)
+
+func touch_interact() -> void:
+	if _is_driving:
+		return
+	if not _nearby_vehicles.is_empty():
+		var vehicle = _nearby_vehicles[0]
+		if vehicle.has_method("enter_vehicle"):
+			vehicle.enter_vehicle(self)
+
+func touch_toggle_crouch() -> void:
+	if _is_driving:
+		return
+	is_crouching = not is_crouching
+	model_root.scale.y = CROUCH_MODEL_SCALE if is_crouching else 1.0
 
 func _unhandled_input(event: InputEvent) -> void:
 	if _is_driving:
