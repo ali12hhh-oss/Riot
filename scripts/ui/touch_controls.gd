@@ -55,7 +55,7 @@ func _joystick_center() -> Vector2:
 
 func _right_base() -> Vector2:
 	var s := _screen_size()
-	return Vector2(s.x - 108.0, s.y - 108.0)
+	return Vector2(s.x - 112.0, s.y - 112.0)
 
 func _action_position(action: String) -> Vector2:
 	var b := _right_base()
@@ -169,6 +169,14 @@ func _apply_sprint() -> void:
 	if _player and _player.has_method("set_touch_sprint"):
 		_player.set_touch_sprint(active)
 	_visual.sprint = active
+
+func is_camera_pan_position(pos: Vector2) -> bool:
+	var s := _screen_size()
+	if pos.y >= s.y - 250.0:
+		return false
+	if pos.x <= 270.0 and pos.y >= s.y - 300.0:
+		return false
+	return true
 
 func _hit_action(action: String, pos: Vector2) -> bool:
 	if not _visual.visible_actions.get(action, false):
