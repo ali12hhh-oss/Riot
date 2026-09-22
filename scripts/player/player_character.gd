@@ -123,6 +123,12 @@ func touch_fire() -> void:
 	if not _is_driving and health.is_alive() and weapon:
 		weapon.try_fire(self)
 
+func has_interactable_vehicle() -> bool:
+	return not _nearby_vehicles.is_empty()
+
+func has_equipped_weapon() -> bool:
+	return str(WeaponSystem.equipped_weapon) != ""
+
 func touch_interact() -> void:
 	if _is_driving:
 		return
