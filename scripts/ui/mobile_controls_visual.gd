@@ -26,24 +26,24 @@ func _draw() -> void:
 	_draw_joystick(center)
 	_draw_sprint(center + Vector2(0, -102), sprint)
 
-	var base := Vector2(size.x - 108.0, size.y - 108.0)
+	var base := Vector2(size.x - 112.0, size.y - 112.0)
 	var positions := {
-		"fire": base + Vector2(-128, -72),
-		"melee": base + Vector2(-58, -142),
-		"crouch": base + Vector2(10, -74),
-		"jump": base + Vector2(0, -155),
-		"interact": base + Vector2(-205, -8),
+		"fire": base + Vector2(0, 0),
+		"melee": base + Vector2(-96, 56),
+		"crouch": base + Vector2(-86, -92),
+		"jump": base + Vector2(-8, -152),
+		"interact": base + Vector2(-198, -12),
 		"sprint": center + Vector2(0, -102),
-		"brake": base + Vector2(-126, 8),
-		"accelerate": base + Vector2(0, 8),
-		"exit": base + Vector2(-68, -212)
+		"brake": base + Vector2(-94, 4),
+		"accelerate": base + Vector2(0, 4),
+		"exit": base + Vector2(-44, -148)
 	}
 	for key in visible_actions.keys():
 		if not visible_actions[key] or key == "sprint":
 			continue
 		if not positions.has(key):
 			continue
-		var radius := 45.0 if key in ["fire", "melee"] else 39.0
+		var radius := 48.0 if key == "fire" else (45.0 if key == "melee" else 40.0)
 		_draw_action(positions[key], radius, str(key))
 
 func _draw_joystick(center: Vector2) -> void:
