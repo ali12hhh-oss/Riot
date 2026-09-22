@@ -1,237 +1,195 @@
 extends CanvasLayer
-## TouchControls
-## أزرار تحكم لمسية للموبايل.
+## PUBG-style mobile controls: left virtual joystick, contextual right actions.
+## Controls are generated at runtime so they remain usable on different phone sizes.
 
-@export var car_path: NodePath
+const JOYSTICK_RADIUS := 88.0
+const JOYSTICK_DEADZONE := 0.12
+const JOYSTICK_KNOB_LIMIT := 1.0
 
-const LAYOUT_PATH: String = "user://control_layout.cfg"
-const MIN_SCALE: float = 0.5
-const MAX_SCALE: float = 2.0
-const DRAG_THRESHOLD: float = 6.0
-
-const DEFAULT_POSITIONS: Dictionary = {
-	"ThrottleButton": Vector2(1050, 500),
-	"BrakeButton": Vector2(870, 560),
-	"HandbrakeButton": Vector2(1050, 350),
-	"LeftButton": Vector2(80, 560),
-	"RightButton": Vector2(220, 560),
-	"InteractButton": Vector2(1050, 200),
-	"CrouchButton": Vector2(920, 200),
-}
-const BASE_RADIUS: Dictionary = {
-	"ThrottleButton": 70.0, "BrakeButton": 55.0, "HandbrakeButton": 45.0,
-	"LeftButton": 60.0, "RightButton": 60.0, "InteractButton": 50.0, "CrouchButton": 45.0,
-}
-
+var _visual: Control
+var _player: Node = null
 var _car: Node = null
-var _steer_left_pressed := false
-var _steer_right_pressed := false
-var _throttle_pressed := false
-var _brake_pressed := false
-var _handbrake_pressed := false
-
-var _buttons: Dictionary = {}
-var _button_scale: Dictionary = {}
-var edit_mode: bool = false
-var _dragging_button: TouchScreenButton = null
-var _drag_start_pos: Vector2 = Vector2.ZERO
-var _has_dragged: bool = false
-var _selected_button_name: String = ""
-
-var _resize_overlay: Control = null
-var _resize_label: Label = null
-
+var _joystick_touch_id := -1
+var _sprint_touch_id := -1
+var _action_touches: Dictionary = {}
+var _sprint_locked := false
+var _last_size := Vector2.ZERO
 
 func _ready() -> void:
-	if car_path != NodePath():
-		_car = get_node(car_path)
 	add_to_group("touch_controls")
-	var saved: Dictionary = _load_layout()
-	_build_ui(saved["positions"])
-	_button_scale = saved["scales"]
-	for key in _buttons.keys():
-		_apply_scale(key)
-	_build_resize_overlay()
+	_visual = load("res://scripts/ui/mobile_controls_visual.gd").new()
+	_visual.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(_visual)
+	_refresh_targets()
+	_update_actions()
+	set_process(true)
 
-
-func _load_layout() -> Dictionary:
-	var config := ConfigFile.new()
-	var positions: Dictionary = DEFAULT_POSITIONS.duplicate()
-	var scales: Dictionary = {}
-	for key in DEFAULT_POSITIONS.keys():
-		scales[key] = 1.0
-	if config.load(LAYOUT_PATH) == OK:
-		for key in DEFAULT_POSITIONS.keys():
-			if config.has_section_key("layout", key):
-				positions[key] = config.get_value("layout", key)
-			if config.has_section_key("scale", key):
-				scales[key] = config.get_value("scale", key)
-	return {"positions": positions, "scales": scales}
-
-
-func save_layout() -> void:
-	var config := ConfigFile.new()
-	for key in _buttons.keys():
-		config.set_value("layout", key, _buttons[key].position)
-		config.set_value("scale", key, _button_scale.get(key, 1.0))
-	config.save(LAYOUT_PATH)
-
-
-func reset_layout() -> void:
-	for key in _buttons.keys():
-		_buttons[key].position = DEFAULT_POSITIONS[key]
-		_button_scale[key] = 1.0
-		_apply_scale(key)
-	_selected_button_name = ""
-	_update_resize_overlay()
-	save_layout()
-
-
-func set_edit_mode(enabled: bool) -> void:
-	edit_mode = enabled
-	_dragging_button = null
-	_selected_button_name = ""
-	_update_resize_overlay()
-
-
-func _apply_scale(btn_name: String) -> void:
-	var btn: TouchScreenButton = _buttons[btn_name]
-	var scale: float = _button_scale.get(btn_name, 1.0)
-	var circle := CircleShape2D.new()
-	circle.radius = BASE_RADIUS[btn_name] * scale
-	btn.shape = circle
-
-
-func _build_ui(positions: Dictionary) -> void:
-	_add_button("ThrottleButton", positions, func(): _throttle_pressed = true, func(): _throttle_pressed = false)
-	_add_button("BrakeButton", positions, func(): _brake_pressed = true, func(): _brake_pressed = false)
-	_add_button("HandbrakeButton", positions, func(): _handbrake_pressed = true, func(): _handbrake_pressed = false)
-	_add_button("LeftButton", positions, func(): _steer_left_pressed = true, func(): _steer_left_pressed = false)
-	_add_button("RightButton", positions, func(): _steer_right_pressed = true, func(): _steer_right_pressed = false)
-
-	var interact_btn := TouchScreenButton.new()
-	interact_btn.name = "InteractButton"
-	interact_btn.position = positions["InteractButton"]
-	interact_btn.action = "interact"
-	add_child(interact_btn)
-	_buttons["InteractButton"] = interact_btn
-
-	var crouch_btn := TouchScreenButton.new()
-	crouch_btn.name = "CrouchButton"
-	crouch_btn.position = positions["CrouchButton"]
-	crouch_btn.action = "crouch"
-	add_child(crouch_btn)
-	_buttons["CrouchButton"] = crouch_btn
-
-
-func _add_button(btn_name: String, positions: Dictionary, on_press: Callable, on_release: Callable) -> void:
-	var btn := TouchScreenButton.new()
-	btn.name = btn_name
-	btn.position = positions[btn_name]
-	add_child(btn)
-	btn.pressed.connect(on_press)
-	btn.released.connect(on_release)
-	_buttons[btn_name] = btn
-
-
-func _build_resize_overlay() -> void:
-	_resize_overlay = Control.new()
-	_resize_overlay.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_resize_overlay.position = Vector2(-100, -160)
-	_resize_overlay.visible = false
-	add_child(_resize_overlay)
-
-	var box := HBoxContainer.new()
-	box.add_theme_constant_override("separation", 10)
-	_resize_overlay.add_child(box)
-
-	var minus_btn := Button.new()
-	minus_btn.text = "－"
-	minus_btn.custom_minimum_size = Vector2(50, 50)
-	minus_btn.pressed.connect(func(): _resize_selected(-0.1))
-	box.add_child(minus_btn)
-
-	_resize_label = Label.new()
-	_resize_label.custom_minimum_size = Vector2(90, 50)
-	_resize_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_resize_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	box.add_child(_resize_label)
-
-	var plus_btn := Button.new()
-	plus_btn.text = "＋"
-	plus_btn.custom_minimum_size = Vector2(50, 50)
-	plus_btn.pressed.connect(func(): _resize_selected(0.1))
-	box.add_child(plus_btn)
-
-
-func _resize_selected(delta: float) -> void:
-	if _selected_button_name == "":
-		return
-	var new_scale: float = clamp(_button_scale.get(_selected_button_name, 1.0) + delta, MIN_SCALE, MAX_SCALE)
-	_button_scale[_selected_button_name] = new_scale
-	_apply_scale(_selected_button_name)
-	_update_resize_overlay()
-	save_layout()
-
-
-func _update_resize_overlay() -> void:
-	if _resize_overlay == null:
-		return
-	_resize_overlay.visible = edit_mode and _selected_button_name != ""
-	if _resize_overlay.visible:
-		_resize_label.text = "الحجم %d%%" % int(_button_scale.get(_selected_button_name, 1.0) * 100)
-
-
-func _input(event: InputEvent) -> void:
-	if not edit_mode:
-		return
-
-	if event is InputEventScreenTouch or event is InputEventMouseButton:
-		var pos: Vector2 = event.position
-		var pressed: bool = event.pressed if event is InputEventScreenTouch else (event as InputEventMouseButton).pressed
-		if pressed:
-			_drag_start_pos = pos
-			_has_dragged = false
-			for key in _buttons.keys():
-				var btn: TouchScreenButton = _buttons[key]
-				var radius: float = BASE_RADIUS[key] * _button_scale.get(key, 1.0)
-				if pos.distance_to(btn.position) <= radius:
-					_dragging_button = btn
-					break
-		else:
-			if _dragging_button:
-				if _has_dragged:
-					save_layout()
-				else:
-					_selected_button_name = _dragging_button.name
-					_update_resize_overlay()
-			_dragging_button = null
-		get_viewport().set_input_as_handled()
-
-	elif (event is InputEventScreenDrag or event is InputEventMouseMotion) and _dragging_button:
-		if event.position.distance_to(_drag_start_pos) > DRAG_THRESHOLD:
-			_has_dragged = true
-			_dragging_button.position = event.position
-			if _selected_button_name != "":
-				_selected_button_name = ""
-				_update_resize_overlay()
-		get_viewport().set_input_as_handled()
-
+func _refresh_targets() -> void:
+	_player = get_tree().get_first_node_in_group("player")
+	_car = get_tree().get_first_node_in_group("vehicle")
 
 func _process(_delta: float) -> void:
-	if edit_mode or _car == null:
+	if _player == null or not is_instance_valid(_player):
+		_refresh_targets()
+	if _car == null or not is_instance_valid(_car):
+		_refresh_targets()
+	_update_actions()
+	if _visual and _last_size != get_viewport().get_visible_rect().size:
+		_last_size = get_viewport().get_visible_rect().size
+		_visual.queue_redraw()
+
+func _screen_size() -> Vector2:
+	return get_viewport().get_visible_rect().size
+
+func _joystick_center() -> Vector2:
+	var s := _screen_size()
+	return Vector2(112.0, s.y - 118.0)
+
+func _right_base() -> Vector2:
+	var s := _screen_size()
+	return Vector2(s.x - 108.0, s.y - 108.0)
+
+func _action_position(action: String) -> Vector2:
+	var b := _right_base()
+	var s := _screen_size()
+	match action:
+		"fire": return b + Vector2(-128,-72)
+		"melee": return b + Vector2(-58,-142)
+		"crouch": return b + Vector2(10,-74)
+		"jump": return b + Vector2(0,-155)
+		"interact": return b + Vector2(-205,-8)
+		"brake": return b + Vector2(-126,8)
+		"accelerate": return b + Vector2(0,8)
+		"exit": return b + Vector2(-68,-212)
+		"sprint": return _joystick_center() + Vector2(0,-102)
+	return Vector2(s.x * 0.5, s.y * 0.5)
+
+func _action_radius(action: String) -> float:
+	return 44.0 if action in ["fire","melee"] else 38.0
+
+func _update_actions() -> void:
+	if _visual == null:
 		return
-	var throttle := 0.0
-	if _throttle_pressed:
-		throttle = 1.0
-	elif _brake_pressed:
-		throttle = -1.0
+	var car_mode := _car != null and is_instance_valid(_car) and bool(_car.get("is_player_driving"))
+	var player_mode := _player != null and is_instance_valid(_player) and not car_mode
+	var weapon := player_mode and _player.has_method("has_equipped_weapon") and _player.has_equipped_weapon()
+	var interact := player_mode and _player.has_method("has_interactable_vehicle") and _player.has_interactable_vehicle()
+	_visual.car_mode = car_mode
+	_visual.visible_actions = {
+		"fire": weapon,
+		"melee": player_mode,
+		"crouch": player_mode,
+		"jump": false,
+		"interact": interact,
+		"sprint": player_mode,
+		"brake": car_mode,
+		"accelerate": car_mode,
+		"exit": car_mode
+	}
+	_visual.queue_redraw()
 
-	var steer := 0.0
-	if _steer_left_pressed:
-		steer = -1.0
-	elif _steer_right_pressed:
-		steer = 1.0
+func _input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		_handle_touch(event.index, event.position, event.pressed)
+	elif event is InputEventScreenDrag:
+		_handle_drag(event.index, event.position)
 
-	if _car.has_method("set_touch_input"):
-		_car.set_touch_input(throttle, steer, _handbrake_pressed)
+func _handle_touch(id: int, pos: Vector2, pressed: bool) -> void:
+	if pressed:
+		if _joystick_touch_id == -1 and pos.distance_to(_joystick_center()) <= JOYSTICK_RADIUS:
+			_joystick_touch_id = id
+			_set_joystick(pos)
+			return
+		if _hit_action("sprint", pos):
+			if _sprint_locked:
+				_sprint_locked = false
+				_sprint_touch_id = -1
+			else:
+				_sprint_locked = true
+				_sprint_touch_id = id
+			_apply_sprint()
+			return
+		for action in ["fire","melee","crouch","interact","brake","accelerate","exit"]:
+			if _hit_action(action, pos):
+				_action_touches[id] = action
+				_press_action(action)
+				return
+	else:
+		if id == _joystick_touch_id:
+			_joystick_touch_id = -1
+			if _player and _player.has_method("set_touch_movement"):
+				_player.set_touch_movement(Vector2.ZERO)
+			_visual.joystick = Vector2.ZERO
+		if _action_touches.has(id):
+			var action: String = _action_touches[id]
+			_action_touches.erase(id)
+			_release_action(action)
+		if id == _sprint_touch_id and not _sprint_locked:
+			_sprint_touch_id = -1
+			_apply_sprint()
+		_visual.queue_redraw()
+
+func _handle_drag(id: int, pos: Vector2) -> void:
+	if id == _joystick_touch_id:
+		_set_joystick(pos)
+
+func _set_joystick(pos: Vector2) -> void:
+	var delta := pos - _joystick_center()
+	var value := delta / JOYSTICK_RADIUS
+	if value.length() > JOYSTICK_KNOB_LIMIT:
+		value = value.normalized()
+	if value.length() < JOYSTICK_DEADZONE:
+		value = Vector2.ZERO
+	_visual.joystick = value
+	# X = left/right, Y = forward/backward. Invert Y for movement.
+	var move := Vector2(value.x, -value.y)
+	if _player and _player.has_method("set_touch_movement"):
+		_player.set_touch_movement(move)
+
+	# Pushing the stick past the forward ring automatically enables sprint.
+	if value.y < -0.72 and value.length() > 0.72:
+		_sprint_locked = true
+	_apply_sprint()
+	_visual.queue_redraw()
+
+func _apply_sprint() -> void:
+	var active := _sprint_locked or _sprint_touch_id != -1
+	if _player and _player.has_method("set_touch_sprint"):
+		_player.set_touch_sprint(active)
+	_visual.sprint = active
+
+func _hit_action(action: String, pos: Vector2) -> bool:
+	if not _visual.visible_actions.get(action, false):
+		return false
+	return pos.distance_to(_action_position(action)) <= _action_radius(action)
+
+func _press_action(action: String) -> void:
+	if _player == null or not is_instance_valid(_player):
+		return
+	match action:
+		"fire":
+			if _player.has_method("touch_fire"):
+				_player.touch_fire()
+		"melee":
+			# Until a melee system exists, keep this as a contextual action hook.
+			if _player.has_method("touch_fire"):
+				_player.touch_fire()
+		"crouch":
+			if _player.has_method("touch_toggle_crouch"):
+				_player.touch_toggle_crouch()
+		"interact":
+			if _player.has_method("touch_interact"):
+				_player.touch_interact()
+		"brake":
+			if _car and _car.has_method("set_touch_input"):
+				_car.set_touch_input(0.0, 0.0, true)
+		"accelerate":
+			if _car and _car.has_method("set_touch_input"):
+				_car.set_touch_input(1.0, 0.0, false)
+		"exit":
+			if _car and _car.has_method("exit_vehicle"):
+				_car.exit_vehicle()
+
+func _release_action(action: String) -> void:
+	if action in ["brake","accelerate"] and _car and _car.has_method("set_touch_input"):
+		_car.set_touch_input(0.0, 0.0, false)
