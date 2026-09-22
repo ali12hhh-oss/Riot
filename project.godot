@@ -11,7 +11,7 @@ config/description="Open-world action driving game - Zade's story"
 run/main_scene="res://scenes/ui/main_menu.tscn"
 config/features=PackedStringArray("4.3", "Mobile")
 boot_splash/bg_color=Color(0.1, 0.1, 0.12, 1)
-config/icon="res://icon.svg"
+config/icon="res://assets/icons/riot_icon_192.png"
 
 [autoload]
 
