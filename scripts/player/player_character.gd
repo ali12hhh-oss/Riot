@@ -36,6 +36,7 @@ func _ready() -> void:
 	stealth_bonus = data.get("stealth_bonus", 0.0)
 
 	_load_character_model(data)
+	_ensure_gameplay_camera()
 
 	add_to_group("player")
 	GameManager.register_player(self)
@@ -64,6 +65,15 @@ func _load_character_model(data: Dictionary) -> void:
 		["idle", "run", "jump"],
 		"res://assets/characters_v2/animations.glb"
 	)
+	model_root.visible = true
+	model_root.scale = Vector3.ONE
+
+func _ensure_gameplay_camera() -> void:
+	if camera == null:
+		return
+	camera.current = true
+	camera.position = Vector3(0, 2.2, 4.8)
+	camera.look_at(global_position + Vector3(0, 0.9, 0), Vector3.UP)
 
 
 func _physics_process(delta: float) -> void:
