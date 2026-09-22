@@ -65,6 +65,7 @@ jobs:
         run: |
           mkdir -p android/build
           unzip -q ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/android_source.zip -d android/build
+          cp ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable/version.txt android/build/.build_version
           touch android/.gdignore
 
       - name: Export Android debug APK
