@@ -80,8 +80,8 @@ func _update_actions() -> void:
 		return
 	var car_mode := _car != null and is_instance_valid(_car) and bool(_car.get("is_player_driving"))
 	var player_mode := _player != null and is_instance_valid(_player) and not car_mode
-	var weapon := player_mode and _player.has_method("has_equipped_weapon") and _player.has_equipped_weapon()
-	var interact := player_mode and _player.has_method("has_interactable_vehicle") and _player.has_interactable_vehicle()
+	var weapon: bool = player_mode and _player.has_method("has_equipped_weapon") and bool(_player.has_equipped_weapon())
+	var interact: bool = player_mode and _player.has_method("has_interactable_vehicle") and bool(_player.has_interactable_vehicle())
 	_visual.car_mode = car_mode
 	_visual.visible_actions = {
 		"fire": weapon,
