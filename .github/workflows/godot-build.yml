@@ -46,6 +46,18 @@ jobs:
           mkdir -v -p ~/.local/share/godot/export_templates
           mv /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
 
+      - name: Detect JAVA_HOME (godot-ci's baked-in editor settings target the wrong config file for Godot 4.x)
+        run: |
+          JAVA_HOME_DETECTED="$(dirname "$(dirname "$(readlink -f "$(which javac || which java)")")")"
+          echo "JAVA_HOME=$JAVA_HOME_DETECTED" >> "$GITHUB_ENV"
+          echo "Detected JAVA_HOME=$JAVA_HOME_DETECTED"
+
+      - name: Generate debug keystore
+        run: |
+          keytool -genkeypair -v -keystore /tmp/debug.keystore -storepass android \
+            -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 \
+            -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+
       - name: Import project (populate .godot cache)
         run: godot --headless --verbose --editor --quit
 
