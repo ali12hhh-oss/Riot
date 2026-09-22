@@ -141,10 +141,14 @@ func _set_joystick(pos: Vector2) -> void:
 	if value.length() < JOYSTICK_DEADZONE:
 		value = Vector2.ZERO
 	_visual.joystick = value
-	# X = left/right, Y = forward/backward. Invert Y for movement.
-	var move := Vector2(value.x, -value.y)
-	if _player and _player.has_method("set_touch_movement"):
-		_player.set_touch_movement(move)
+	# On foot: X/Y move the character. In a car: X steers and Y throttles.
+	if _car != null and is_instance_valid(_car) and bool(_car.get("is_player_driving")):
+		if _car.has_method("set_touch_input"):
+			_car.set_touch_input(-value.y, value.x, false)
+	else:
+		var move := Vector2(value.x, -value.y)
+		if _player and _player.has_method("set_touch_movement"):
+			_player.set_touch_movement(move)
 
 	# Pushing the stick past the forward ring automatically enables sprint.
 	if value.y < -0.72 and value.length() > 0.72:
@@ -171,7 +175,8 @@ func _press_action(action: String) -> void:
 			if _player.has_method("touch_fire"):
 				_player.touch_fire()
 		"melee":
-			# Until a melee system exists, keep this as a contextual action hook.
+			# The current combat module exposes one fire hook; keep this button
+			# separate so a dedicated melee system can be plugged in later.
 			if _player.has_method("touch_fire"):
 				_player.touch_fire()
 		"crouch":
